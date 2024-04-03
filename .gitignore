@@ -1,0 +1,5 @@
+# created by virtualenv automatically
+/yolov8x.pt
+/venv
+/.DS_Store
+/.idea/
