@@ -43,31 +43,45 @@ for frame_counter in range(SEQUENCE_LENGTH):
         break
 
     # detect and track objects
-    results = model.track(frame, persist=True)
-    frame_ = results[0].plot()
     result = model(frame)
 
     boxes = result[0].boxes.xyxy.tolist()
     classes = result[0].boxes.cls.tolist()
     names = result[0].names
-    confidences = result[0].boxes.conf.tolist()
+
+    # Initialize varibales to store the largest bounding box for each class
+    largest_person_box = None
+    largest_skateboard_box = None
+    frame_info_string = ''
 
     # Iterate through the results and write information to the text file
-    for box, cls, conf in zip(boxes, classes, confidences):
+    for box, cls in zip(boxes, classes):
+
+        detected_class = cls
+        name = names[int(cls)]
+
+        # Check if the detected class is a 'person' or 'skateboard'
+        if name in ['person', 'skateboard']:
             x1, y1, x2, y2 = box
-            confidence = conf
-            detected_class = cls
-            name = names[int(cls)]
-            # Write the information to the text file
-            output_file.write(
-                f"Frame: {frame_counter} Class: {name}, Bounding Box: ({x1:.2f}, {y1:.2f}, {x2:.2f}, {y2:.2f})\n")
+            box_area = (x2 - x1) * (y2 - y1)
 
-    # Visualize
-    cv2.imshow('frame', frame_)
+            # Update the largest bounding box for the corresponding class
+            if name == 'person' and (largest_person_box is None or box_area > largest_person_box[0]):
+                largest_person_box = (box_area, box)
+            elif name == 'skateboard' and (largest_skateboard_box is None or box_area > largest_skateboard_box[0]):
+                largest_skateboard_box = (box_area, box)
 
-    # Exit the loop if 'q' is pressed
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
+    # Write information for the largest bounding box of each class to the output file
+    if largest_person_box:
+        x1, y1, x2, y2 = largest_person_box[1]
+        frame_info_string += f"Frame: {frame_counter}, Class: person, Bounding Box: ({x1:.2f}, {y1:.2f}, {x2:.2f}, {y2:.2f}) | "
+    if largest_skateboard_box:
+        x1, y1, x2, y2 = largest_skateboard_box[1]
+        frame_info_string += f"Frame: {frame_counter}, Class: skateboard, Bounding Box: ({x1:.2f}, {y1:.2f}, {x2:.2f}, {y2:.2f}) | "
+
+    output_file.write(frame_info_string)
+
+
 
 # Release the video capture and close all OpenCV windows
 cap.release()
